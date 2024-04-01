@@ -8,9 +8,23 @@ let pressed = false;
 let lastX = 0;
 let lastY = 0;
 
+function circle(posX, posY, radius, prob) {
+    for (let x = posX - radius; x <= posX + radius; x++) {
+        for (let y = posY - radius; y <= posY + radius; y++) {
+            if (Math.sqrt((x - posX)**2 + (y - posY)**2) <= radius) {
+                if (Math.random() < prob) {
+                    cells[y * canvasWidth + x] = 255;
+                } else {
+                    cells[y * canvasWidth + x] = 0;
+                }
+            }
+        }
+    }
+}
+
 function tick() {
     if (pressed) {
-        cells[lastY * canvasHeight + lastX] = 255;
+        circle(lastX, lastY, 5, 0.2);
     }
 
     let nextCells = new Array(canvasWidth * canvasHeight).fill(0);
@@ -83,12 +97,13 @@ function renderLoop() {
     requestAnimationFrame(renderLoop);
 }
 
-function start() {
+window.onload = () => {
     canvas = document.getElementById("canvas");
     context = canvas.getContext("2d");
     canvasWidth = canvas.clientWidth;
     canvasHeight = canvas.clientHeight;
-    cells = new Array(canvasWidth * canvasHeight).fill(0);
+
+    cells = new Array(canvasWidth * canvasHeight)
 
     addEventListener("mousedown", (event) => {
         pressed = true;
@@ -109,7 +124,7 @@ function start() {
             let error = dx + dy;
 
             while (true) {
-                cells[y0 * canvasHeight + x0] = 255;
+                circle(x0, y0, 5, 0.2);
 
                 if (x0 == x1 && y0 == y1) {
                     break;
