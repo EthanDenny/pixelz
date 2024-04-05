@@ -1,21 +1,55 @@
 let canvas = null;
-let context = null;
-let canvasWidth = 0;
-let canvasHeight = 0;
+let ctx = null;
+
+const cellSize = 8;
+let width = 0;
+let height = 0;
+
 let cells = [];
 
 let pressed = false;
-let lastX = 0;
-let lastY = 0;
+let mouseX = 0;
+let mouseY = 0;
+
+function choose(array) {
+    return array[Math.floor(Math.random() * array.length)]
+}
+
+class Particle {
+    constructor(colours) {
+        this.colour = choose(colours);
+    }
+}
+
+class Empty extends Particle {
+    constructor() {
+        super(["#000000ff"]);
+    }
+}
+
+class Sand extends Particle {
+    constructor() {
+        const colours = [
+            "#ffee00ff",
+            "#eedd00ff",
+            "#ddcc00ff",
+            "#ccbb00ff"
+        ]
+        super(colours);
+    }
+}
 
 function circle(posX, posY, radius, prob) {
+    posX = Math.floor(posX / cellSize);
+    posY = Math.floor(posY / cellSize);
+
     for (let x = posX - radius; x <= posX + radius; x++) {
         for (let y = posY - radius; y <= posY + radius; y++) {
             if (Math.sqrt((x - posX)**2 + (y - posY)**2) <= radius) {
                 if (Math.random() < prob) {
-                    cells[y * canvasWidth + x] = 255;
+                    cells[y * width + x] = new Sand();
                 } else {
-                    cells[y * canvasWidth + x] = 0;
+                    cells[y * width + x] = new Empty();
                 }
             }
         }
@@ -24,27 +58,27 @@ function circle(posX, posY, radius, prob) {
 
 function tick() {
     if (pressed) {
-        circle(lastX, lastY, 5, 0.2);
+        circle(mouseX, mouseY, 5, 0.7);
     }
 
-    let nextCells = new Array(canvasWidth * canvasHeight).fill(0);
+    let nextCells = Array.from({length: width * height}, () => new Empty());
 
-    for (let y = canvasHeight - 1; y >= 0; y--) {
-        for (let x = 0; x < canvasWidth; x++) {
-            let cellIndex = y * canvasWidth + x;
-            if (cells[cellIndex] == 255) {
+    for (let y = height - 1; y >= 0; y--) {
+        for (let x = 0; x < width; x++) {
+            let cellIndex = y * width + x;
+            let particle = cells[cellIndex]
+            if (!(particle instanceof Empty)) {
                 let possibleLocations = [];
 
-                if (y < canvasHeight - 1) {
-                    let down = cellIndex + canvasWidth;
+                if (y < height - 1) {
+                    let down = cellIndex + width;
 
                     possibleLocations.push(down);
 
                     let left = down - 1;
                     let right = down + 1
-
                     let hasLeft = x > 0;
-                    let hasRight = x < canvasWidth - 1;
+                    let hasRight = x < width - 1;
 
                     if (hasLeft && hasRight)
                     {
@@ -66,8 +100,8 @@ function tick() {
 
                 for (let i = 0; i < possibleLocations.length; i++) {
                     let loc = possibleLocations[i];
-                    if (nextCells[loc] == 0) {
-                        nextCells[loc] = 255;
+                    if (nextCells[loc] instanceof Empty) {
+                        nextCells[loc] = particle;
                         break;
                     }
                 }
@@ -81,39 +115,35 @@ function tick() {
 function renderLoop() {
     tick();
 
-    var data = new Uint8ClampedArray(canvasWidth * canvasHeight * 4);
-    for (let index = 0; index < canvasWidth * canvasHeight; index++) {
-        let pixel = index * 4;
-        let cell = cells[index];
-        data[pixel + 0] = cell;
-        data[pixel + 1] = cell;
-        data[pixel + 2] = cell;
-        data[pixel + 3] = 255;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            ctx.fillStyle = cells[y * width + x].colour;
+            ctx.beginPath();
+            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            ctx.stroke();
+        }
     }
-
-    let image = new ImageData(data, canvasWidth, canvasHeight);
-    context.putImageData(image, 0.0, 0.0)
 
     requestAnimationFrame(renderLoop);
 }
 
 window.onload = () => {
     canvas = document.getElementById("canvas");
-    context = canvas.getContext("2d");
-    canvasWidth = canvas.clientWidth;
-    canvasHeight = canvas.clientHeight;
+    ctx = canvas.getContext("2d");
+    width = Math.floor(canvas.clientWidth / cellSize);
+    height = Math.floor(canvas.clientHeight / cellSize);
 
-    cells = new Array(canvasWidth * canvasHeight)
+    cells = Array.from({length: width * height}, () => new Empty());
 
     addEventListener("mousedown", (event) => {
         pressed = true;
-        lastX = event.offsetX;
-        lastY = event.offsetY;
+        mouseX = event.offsetX;
+        mouseY = event.offsetY;
     });
     addEventListener("mousemove", (event) => {
         if (pressed) {
-            let x0 = lastX;
-            let y0 = lastY;
+            let x0 = mouseX;
+            let y0 = mouseY;
             let x1 = event.offsetX;
             let y1 = event.offsetY;
 
@@ -124,7 +154,7 @@ window.onload = () => {
             let error = dx + dy;
 
             while (true) {
-                circle(x0, y0, 5, 0.2);
+                circle(x0, y0, 5, 0.7);
 
                 if (x0 == x1 && y0 == y1) {
                     break;
@@ -146,8 +176,8 @@ window.onload = () => {
                 }
             }
 
-            lastX = event.offsetX;
-            lastY = event.offsetY;
+            mouseX = event.offsetX;
+            mouseY = event.offsetY;
         }
     });
     addEventListener("mouseup", () => {
