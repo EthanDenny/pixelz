@@ -6,6 +6,7 @@ let width = 0;
 let height = 0;
 
 let cells = [];
+let updateCells = [];
 
 let pressed = false;
 let mouseX = 0;
@@ -13,6 +14,10 @@ let mouseY = 0;
 
 function choose(array) {
     return array[Math.floor(Math.random() * array.length)]
+}
+
+function toIndex(x, y) {
+    return y * width + x;
 }
 
 class Particle {
@@ -33,7 +38,7 @@ class Sand extends Particle {
             "#ffee00ff",
             "#eedd00ff",
             "#ddcc00ff",
-            "#ccbb00ff"
+            "#ccbb00ff",
         ]
         super(colours);
     }
@@ -46,11 +51,13 @@ function circle(posX, posY, radius, prob) {
     for (let x = posX - radius; x <= posX + radius; x++) {
         for (let y = posY - radius; y <= posY + radius; y++) {
             if (Math.sqrt((x - posX)**2 + (y - posY)**2) <= radius) {
+                let index = toIndex(x, y);
                 if (Math.random() < prob) {
-                    cells[y * width + x] = new Sand();
+                    cells[index] = new Sand();
                 } else {
-                    cells[y * width + x] = new Empty();
+                    cells[index] = new Empty();
                 }
+                updateCells.push([x, y]);
             }
         }
     }
@@ -65,27 +72,30 @@ function tick() {
 
     for (let y = height - 1; y >= 0; y--) {
         for (let x = 0; x < width; x++) {
-            let cellIndex = y * width + x;
+            let cellIndex = toIndex(x, y);
             let particle = cells[cellIndex]
-            if (!(particle instanceof Empty)) {
-                let possibleLocations = [];
+            let possibleLocations = [];
 
-                if (y < height - 1) {
-                    let down = cellIndex + width;
+            let down = [x, y + 1];
+            let left = [x - 1, y];
+            let right = [x + 1, y];
+            let downLeft = [x - 1, y + 1];
+            let downRight = [x + 1, y + 1];
 
+            let hasDown = y < height - 1;
+            let hasLeft = x > 0;
+            let hasRight = x < width - 1;
+
+            if (particle instanceof Sand) {
+                if (hasDown) {
                     possibleLocations.push(down);
-
-                    let left = down - 1;
-                    let right = down + 1
-                    let hasLeft = x > 0;
-                    let hasRight = x < width - 1;
 
                     if (hasLeft && hasRight)
                     {
                         if (Math.random() < 0.5) {
-                            possibleLocations.push(left);
+                            possibleLocations.push(downLeft);
                         } else {
-                            possibleLocations.push(right);
+                            possibleLocations.push(downRight);
                         }
                     }
                     else if (hasLeft) {
@@ -96,12 +106,22 @@ function tick() {
                     }
                 }
 
-                possibleLocations.push(cellIndex);
+                possibleLocations.push([x, y]);
+            }
 
+            if (!(particle instanceof Empty)) {
                 for (let i = 0; i < possibleLocations.length; i++) {
-                    let loc = possibleLocations[i];
-                    if (nextCells[loc] instanceof Empty) {
-                        nextCells[loc] = particle;
+                    let [nextX, nextY] = possibleLocations[i];
+                    let nextIndex = toIndex(nextX, nextY);
+
+                    if (nextCells[nextIndex] instanceof Empty) {
+                        // Swap particles
+                        nextCells[cellIndex] = nextCells[nextIndex];
+                        nextCells[nextIndex] = particle;
+
+                        updateCells.push([x, y]);
+                        updateCells.push([nextX, nextY])
+
                         break;
                     }
                 }
@@ -115,13 +135,13 @@ function tick() {
 function renderLoop() {
     tick();
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            ctx.fillStyle = cells[y * width + x].colour;
-            ctx.beginPath();
-            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-            ctx.stroke();
-        }
+    while (updateCells.length > 0) {
+        let [x, y] = updateCells.pop();
+        let cell = cells[toIndex(x, y)];
+        ctx.fillStyle = cell.colour;
+        ctx.beginPath();
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        ctx.stroke();
     }
 
     requestAnimationFrame(renderLoop);
@@ -134,6 +154,12 @@ window.onload = () => {
     height = Math.floor(canvas.clientHeight / cellSize);
 
     cells = Array.from({length: width * height}, () => new Empty());
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            updateCells.push([x, y]);
+        }
+    }
 
     addEventListener("mousedown", (event) => {
         pressed = true;
