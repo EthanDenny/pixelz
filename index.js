@@ -1,8 +1,6 @@
 let canvas = null;
 let ctx = null;
 
-const backgroundColour = "#000000ff";
-
 const cellSize = 8;
 let width = 0;
 let height = 0;
@@ -131,14 +129,15 @@ function renderLoop() {
         let [x, y] = updateCells.pop();
         let cell = cells[toIndex(x, y)];
 
+        ctx.beginPath();
+
         if (cell === null) {
-            ctx.fillStyle = backgroundColour;
+            ctx.clearRect(x * cellSize, y * cellSize, cellSize, cellSize);
         } else {
             ctx.fillStyle = cell.colour;
+            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         }
-        
-        ctx.beginPath();
-        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+
         ctx.stroke();
     }
 
