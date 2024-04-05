@@ -9,6 +9,7 @@ let cells = [];
 let updateCells = [];
 
 let pressed = false;
+let buttonDown = 0;
 let mouseX = 0;
 let mouseY = 0;
 
@@ -21,7 +22,8 @@ function toIndex(x, y) {
 }
 
 class Particle {
-    constructor(colours) {
+    constructor(density, colours) {
+        this.density = density;
         this.colour = choose(colours);
     }
 }
@@ -34,7 +36,19 @@ class Sand extends Particle {
             "#ddcc00ff",
             "#ccbb00ff",
         ]
-        super(colours);
+        super(1, colours);
+    }
+}
+
+class Water extends Particle {
+    constructor() {
+        const colours = [
+            "#0000ffff",
+            "#0000eeff",
+            "#0000ddff",
+            "#0000ccff",
+        ]
+        super(0, colours);
     }
 }
 
@@ -47,9 +61,11 @@ function circle(posX, posY, radius, prob) {
             if (Math.sqrt((x - posX)**2 + (y - posY)**2) <= radius) {
                 let index = toIndex(x, y);
                 if (Math.random() < prob) {
-                    cells[index] = new Sand();
-                } else {
-                    cells[index] = null;
+                    if (buttonDown == 0) {
+                        cells[index] = new Sand();
+                    } else {
+                        cells[index] = new Water();
+                    }
                 }
                 updateCells.push([x, y]);
             }
@@ -59,7 +75,7 @@ function circle(posX, posY, radius, prob) {
 
 function tick() {
     if (pressed) {
-        circle(mouseX, mouseY, 5, 0.7);
+        circle(mouseX, mouseY, 5, 0.1);
     }
 
     for (let y = height - 1; y >= 0; y--) {
@@ -91,11 +107,49 @@ function tick() {
                         }
                     }
                     else if (hasLeft) {
-                        possibleLocations.push(left);
+                        possibleLocations.push(downLeft);
                     }
                     else if (hasRight) {
+                        possibleLocations.push(downRight);
+                    }
+                }
+
+                possibleLocations.push([x, y]);
+            }
+
+            if (particle instanceof Water) {
+                if (hasDown) {
+                    possibleLocations.push(down);
+
+                    if (hasLeft && hasRight)
+                    {
+                        if (Math.random() < 0.5) {
+                            possibleLocations.push(downLeft);
+                        } else {
+                            possibleLocations.push(downRight);
+                        }
+                    }
+                    else if (hasLeft) {
+                        possibleLocations.push(downLeft);
+                    }
+                    else if (hasRight) {
+                        possibleLocations.push(downRight);
+                    }
+                }
+
+                if (hasLeft && hasRight)
+                {
+                    if (Math.random() < 0.5) {
+                        possibleLocations.push(left);
+                    } else {
                         possibleLocations.push(right);
                     }
+                }
+                else if (hasLeft) {
+                    possibleLocations.push(left);
+                }
+                else if (hasRight) {
+                    possibleLocations.push(right);
                 }
 
                 possibleLocations.push([x, y]);
@@ -105,10 +159,11 @@ function tick() {
                 for (let i = 0; i < possibleLocations.length; i++) {
                     let [nextX, nextY] = possibleLocations[i];
                     let nextIndex = toIndex(nextX, nextY);
+                    let nextParticle = cells[nextIndex];
 
-                    if (cells[nextIndex] === null) {
+                    if (nextParticle === null || nextParticle.density < particle.density) {
                         // Swap particles
-                        cells[cellIndex] = cells[nextIndex];
+                        cells[cellIndex] = nextParticle;
                         cells[nextIndex] = particle;
 
                         updateCells.push([x, y]);
@@ -162,6 +217,7 @@ window.onload = () => {
         pressed = true;
         mouseX = event.offsetX;
         mouseY = event.offsetY;
+        buttonDown = event.button;
     });
     addEventListener("mousemove", (event) => {
         if (pressed) {
@@ -177,7 +233,7 @@ window.onload = () => {
             let error = dx + dy;
 
             while (true) {
-                circle(x0, y0, 5, 0.7);
+                circle(x0, y0, 5, 0.1);
 
                 if (x0 == x1 && y0 == y1) {
                     break;
