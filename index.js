@@ -1,6 +1,8 @@
 let canvas = null;
 let ctx = null;
 
+const backgroundColour = "#000000ff";
+
 const cellSize = 8;
 let width = 0;
 let height = 0;
@@ -23,12 +25,6 @@ function toIndex(x, y) {
 class Particle {
     constructor(colours) {
         this.colour = choose(colours);
-    }
-}
-
-class Empty extends Particle {
-    constructor() {
-        super(["#000000ff"]);
     }
 }
 
@@ -55,7 +51,7 @@ function circle(posX, posY, radius, prob) {
                 if (Math.random() < prob) {
                     cells[index] = new Sand();
                 } else {
-                    cells[index] = new Empty();
+                    cells[index] = null;
                 }
                 updateCells.push([x, y]);
             }
@@ -67,8 +63,6 @@ function tick() {
     if (pressed) {
         circle(mouseX, mouseY, 5, 0.7);
     }
-
-    let nextCells = Array.from({length: width * height}, () => new Empty());
 
     for (let y = height - 1; y >= 0; y--) {
         for (let x = 0; x < width; x++) {
@@ -109,15 +103,15 @@ function tick() {
                 possibleLocations.push([x, y]);
             }
 
-            if (!(particle instanceof Empty)) {
+            if (particle !== null) {
                 for (let i = 0; i < possibleLocations.length; i++) {
                     let [nextX, nextY] = possibleLocations[i];
                     let nextIndex = toIndex(nextX, nextY);
 
-                    if (nextCells[nextIndex] instanceof Empty) {
+                    if (cells[nextIndex] === null) {
                         // Swap particles
-                        nextCells[cellIndex] = nextCells[nextIndex];
-                        nextCells[nextIndex] = particle;
+                        cells[cellIndex] = cells[nextIndex];
+                        cells[nextIndex] = particle;
 
                         updateCells.push([x, y]);
                         updateCells.push([nextX, nextY])
@@ -128,8 +122,6 @@ function tick() {
             }
         }
     }
-
-    cells = nextCells;
 }
 
 function renderLoop() {
@@ -138,7 +130,13 @@ function renderLoop() {
     while (updateCells.length > 0) {
         let [x, y] = updateCells.pop();
         let cell = cells[toIndex(x, y)];
-        ctx.fillStyle = cell.colour;
+
+        if (cell === null) {
+            ctx.fillStyle = backgroundColour;
+        } else {
+            ctx.fillStyle = cell.colour;
+        }
+        
         ctx.beginPath();
         ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         ctx.stroke();
@@ -153,7 +151,7 @@ window.onload = () => {
     width = Math.floor(canvas.clientWidth / cellSize);
     height = Math.floor(canvas.clientHeight / cellSize);
 
-    cells = Array.from({length: width * height}, () => new Empty());
+    cells = new Array(width * height).fill(null);
 
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
