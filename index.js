@@ -13,6 +13,8 @@ let buttonDown = 0;
 let mouseX = 0;
 let mouseY = 0;
 
+let newParticle = () => null
+
 function choose(array) {
     return array[Math.floor(Math.random() * array.length)]
 }
@@ -52,6 +54,20 @@ class Water extends Particle {
     }
 }
 
+function setType(type) {
+    switch (type) {
+        case "sand":
+            newParticle = () => new Sand();
+            break;
+        case "water":
+            newParticle = () => new Water();
+            break;
+        default:
+            newParticle = () => null;
+            break;
+    }
+}
+
 function circle(posX, posY, radius, prob) {
     posX = Math.floor(posX / cellSize);
     posY = Math.floor(posY / cellSize);
@@ -61,13 +77,9 @@ function circle(posX, posY, radius, prob) {
             if (Math.sqrt((x - posX)**2 + (y - posY)**2) <= radius) {
                 let index = toIndex(x, y);
                 if (Math.random() < prob) {
-                    if (buttonDown == 0) {
-                        cells[index] = new Sand();
-                    } else {
-                        cells[index] = new Water();
-                    }
+                    cells[index] = newParticle();
+                    updateCells.push([x, y]);
                 }
-                updateCells.push([x, y]);
             }
         }
     }
@@ -213,13 +225,13 @@ window.onload = () => {
         }
     }
 
-    addEventListener("mousedown", (event) => {
+    canvas.addEventListener("mousedown", (event) => {
         pressed = true;
         mouseX = event.offsetX;
         mouseY = event.offsetY;
         buttonDown = event.button;
     });
-    addEventListener("mousemove", (event) => {
+    canvas.addEventListener("mousemove", (event) => {
         if (pressed) {
             let x0 = mouseX;
             let y0 = mouseY;
@@ -259,7 +271,7 @@ window.onload = () => {
             mouseY = event.offsetY;
         }
     });
-    addEventListener("mouseup", () => {
+    canvas.addEventListener("mouseup", () => {
         pressed = false;
     });
 
