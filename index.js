@@ -209,7 +209,12 @@ class Acid extends Liquid {
         if (!(endParticle instanceof Acid)) {
             if (Math.random() < 0.02) {
                 cells[startIndex] = null;
-                cells[endIndex] = startParticle;
+
+                if (cells[endIndex] !== null && Math.random() < 0.8) {
+                    cells[endIndex] = null;
+                } else {
+                    cells[endIndex] = startParticle;
+                }
 
                 updateCells.push([x0, y0]);
                 updateCells.push([x1, y1]);
