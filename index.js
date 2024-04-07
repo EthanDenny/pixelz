@@ -22,14 +22,20 @@ function toIndex(x, y) {
     return y * width + x;
 }
 
+function isFlammable(x, y) {
+    let index = toIndex(x, y);
+    return cells[index] !== null && cells[index].flammable;
+}
+
 class Particle {
-    constructor(density, colours) {
+    constructor(density, colours, flammable) {
         this.density = density;
         this.colour = choose(colours);
+        this.flammable = flammable;
     }
 
     spread(x, y) {
-        return true;
+        return [];
     }
 
     move(x0, y0, x1, y1) {
@@ -53,9 +59,105 @@ class Particle {
     }
 }
 
+function ignite(x, y) {
+    if (!isFlammable(x, y)) {
+        return false;
+    }
+
+    let index = toIndex(x, y);
+    cells[index] = new Fire();
+    updateCells.push([x, y]);
+
+    return true;
+}
+
+class Fire extends Particle {
+    constructor() {
+        const colours = [
+            "#ff6600ff",
+            "#ee5500ff",
+            "#dd4400ff",
+            "#cc3300ff",
+        ]
+        super(0, colours, false);
+        
+        this.canSpread = false;
+        this.hasSpread = false;
+    }
+
+    spread(x, y) {
+        let possibleLocations = [];
+
+        this.canSpread = false;
+
+        for (let nextY = Math.max(0, y - 1); nextY <= Math.min(height - 1, y + 1); nextY++) {
+            for (let nextX = Math.max(0, x - 1); nextX <= Math.min(width - 1, x + 1); nextX++) {
+                if (isFlammable(nextX, nextY)) {
+                    this.canSpread = true;
+                }
+                possibleLocations.push([nextX, nextY]);
+            }
+        }
+
+        if (Math.random() < 0.1) {
+            return [choose(possibleLocations)];
+        }
+        
+        return [];
+    }
+
+    move(x0, y0, x1, y1) {
+        if (ignite(x1, y1)) {
+            this.hasSpread = true;
+        }
+
+        let snuffChance = 0;
+
+        if (!this.canSpread) {
+            snuffChance += 0.9;
+
+            if (this.hasSpread) {
+                snuffChance += 0.1;
+            }
+        }
+
+        if (Math.random() < snuffChance) {
+            let startIndex = toIndex(x0, y0);
+            cells[startIndex] = null;
+            updateCells.push([x0, y0]);
+        }
+
+        return true;
+    }
+}
+
+class Stone extends Particle {
+    constructor() {
+        const colours = [
+            "#ddddddff",
+            "#ccccccff",
+            "#bbbbbbff",
+            "#aaaaaaff",
+        ]
+        super(1, colours, false);
+    }
+}
+
+class Wood extends Particle {
+    constructor() {
+        const colours = [
+            "#774400ff",
+            "#663300ff",
+            "#552200ff",
+            "#441100ff",
+        ]
+        super(1, colours, true);
+    }
+}
+
 class Dust extends Particle {
-    constructor(density, colours) {
-        super(density, colours);
+    constructor(density, colours, flammable) {
+        super(density, colours, flammable);
     }
 
     spread(x, y) {
@@ -94,9 +196,21 @@ class Dust extends Particle {
     }
 }
 
+class Sand extends Dust {
+    constructor() {
+        const colours = [
+            "#ffee00ff",
+            "#eedd00ff",
+            "#ddcc00ff",
+            "#ccbb00ff",
+        ]
+        super(1, colours, false);
+    }
+}
+
 class Liquid extends Particle {
     constructor(density, colours) {
-        super(density, colours);
+        super(density, colours, false);
     }
 
     spread(x, y) {
@@ -152,30 +266,6 @@ class Liquid extends Particle {
     }
 }
 
-class Stone extends Particle {
-    constructor() {
-        const colours = [
-            "#ddddddff",
-            "#ccccccff",
-            "#bbbbbbff",
-            "#aaaaaaff",
-        ]
-        super(1, colours);
-    }
-}
-
-class Sand extends Dust {
-    constructor() {
-        const colours = [
-            "#ffee00ff",
-            "#eedd00ff",
-            "#ddcc00ff",
-            "#ccbb00ff",
-        ]
-        super(1, colours);
-    }
-}
-
 class Water extends Liquid {
     constructor() {
         const colours = [
@@ -185,6 +275,35 @@ class Water extends Liquid {
             "#0000ccff",
         ]
         super(0.5, colours);
+    }
+
+    move(x0, y0, x1, y1) {
+        let startIndex = toIndex(x0, y0);
+        let endIndex = toIndex(x1, y1);
+
+        let startParticle = cells[startIndex];
+        let endParticle = cells[endIndex];
+
+        if (endParticle instanceof Fire) {
+            cells[startIndex] = null;
+            cells[endIndex] = startParticle;
+
+            updateCells.push([x0, y0]);
+            updateCells.push([x1, y1]);
+        } else if (endParticle instanceof Lava) {
+            cells[endIndex] = new Stone();
+            updateCells.push([x1, y1]);
+        } else if (endParticle === null || endParticle.density < startParticle.density) {
+            cells[startIndex] = endParticle;
+            cells[endIndex] = startParticle;
+
+            updateCells.push([x0, y0]);
+            updateCells.push([x1, y1]);
+        } else {
+            return false;
+        }
+
+        return true;
     }
 }
 
@@ -237,10 +356,51 @@ class Acid extends Liquid {
     }
 }
 
+class Lava extends Liquid {
+    constructor() {
+        const colours = [
+            "#dd3300ff",
+            "#cc2200ff",
+            "#bb1100ff",
+            "#aa0000ff",
+        ]
+        super(0.5, colours);
+    }
+
+    move(x0, y0, x1, y1) {
+        let startIndex = toIndex(x0, y0);
+        let endIndex = toIndex(x1, y1);
+
+        let startParticle = cells[startIndex];
+        let endParticle = cells[endIndex];
+        
+        if (endParticle === null) {
+            cells[startIndex] = endParticle;
+            cells[endIndex] = startParticle;
+
+            updateCells.push([x0, y0]);
+            updateCells.push([x1, y1]);
+        } else if (endParticle instanceof Water) {
+            cells[startIndex] = new Stone();
+            updateCells.push([x0, y0]);
+        } else if (Math.random() < 0.02) {
+            ignite(x1, y1);
+            updateCells.push([x1, y1]);
+        } else {
+            return false;
+        }
+
+        return true;
+    }
+}
+
 function setType(type) {
     switch (type) {
         case "stone":
             newParticle = () => new Stone();
+            break;
+        case "wood":
+            newParticle = () => new Wood();
             break;
         case "sand":
             newParticle = () => new Sand();
@@ -250,6 +410,12 @@ function setType(type) {
             break;
         case "acid":
             newParticle = () => new Acid();
+            break;
+        case "fire":
+            newParticle = () => new Fire();
+            break;
+        case "lava":
+            newParticle = () => new Lava();
             break;
         case "erase":
         default:
