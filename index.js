@@ -9,7 +9,6 @@ let cells = [];
 let updateCells = [];
 
 let pressed = false;
-let buttonDown = 0;
 let mouseX = 0;
 let mouseY = 0;
 
@@ -28,9 +27,144 @@ class Particle {
         this.density = density;
         this.colour = choose(colours);
     }
+
+    spread(x, y) {
+        return true;
+    }
+
+    move(x0, y0, x1, y1) {
+        let startIndex = toIndex(x0, y0);
+        let endIndex = toIndex(x1, y1);
+
+        let startParticle = cells[startIndex];
+        let endParticle = cells[endIndex];
+
+        if (endParticle === null || endParticle.density < startParticle.density) {
+            cells[startIndex] = endParticle;
+            cells[endIndex] = startParticle;
+
+            updateCells.push([x0, y0]);
+            updateCells.push([x1, y1]);
+
+            return true;
+        }
+
+        return false;
+    }
 }
 
-class Sand extends Particle {
+class Dust extends Particle {
+    constructor(density, colours) {
+        super(density, colours);
+    }
+
+    spread(x, y) {
+        let possibleLocations = [];
+
+        let down = [x, y + 1];
+        let downLeft = [x - 1, y + 1];
+        let downRight = [x + 1, y + 1];
+
+        let hasDown = y < height - 1;
+        let hasLeft = x > 0;
+        let hasRight = x < width - 1;
+
+        if (hasDown) {
+            possibleLocations.push(down);
+
+            if (hasLeft && hasRight)
+            {
+                if (Math.random() < 0.5) {
+                    possibleLocations.push(downLeft);
+                } else {
+                    possibleLocations.push(downRight);
+                }
+            }
+            else if (hasLeft) {
+                possibleLocations.push(downLeft);
+            }
+            else if (hasRight) {
+                possibleLocations.push(downRight);
+            }
+        }
+
+        possibleLocations.push([x, y]);
+
+        return possibleLocations;
+    }
+}
+
+class Liquid extends Particle {
+    constructor(density, colours) {
+        super(density, colours);
+    }
+
+    spread(x, y) {
+        let possibleLocations = [];
+
+        let down = [x, y + 1];
+        let left = [x - 1, y];
+        let right = [x + 1, y];
+        let downLeft = [x - 1, y + 1];
+        let downRight = [x + 1, y + 1];
+
+        let hasDown = y < height - 1;
+        let hasLeft = x > 0;
+        let hasRight = x < width - 1;
+
+        if (hasDown) {
+            possibleLocations.push(down);
+
+            if (hasLeft && hasRight)
+            {
+                if (Math.random() < 0.5) {
+                    possibleLocations.push(downLeft);
+                } else {
+                    possibleLocations.push(downRight);
+                }
+            }
+            else if (hasLeft) {
+                possibleLocations.push(downLeft);
+            }
+            else if (hasRight) {
+                possibleLocations.push(downRight);
+            }
+        }
+
+        if (hasLeft && hasRight)
+        {
+            if (Math.random() < 0.5) {
+                possibleLocations.push(left);
+            } else {
+                possibleLocations.push(right);
+            }
+        }
+        else if (hasLeft) {
+            possibleLocations.push(left);
+        }
+        else if (hasRight) {
+            possibleLocations.push(right);
+        }
+
+        possibleLocations.push([x, y]);
+
+        return possibleLocations;
+    }
+}
+
+class Stone extends Particle {
+    constructor() {
+        const colours = [
+            "#ddddddff",
+            "#ccccccff",
+            "#bbbbbbff",
+            "#aaaaaaff",
+        ]
+        super(1, colours);
+    }
+}
+
+class Sand extends Dust {
     constructor() {
         const colours = [
             "#ffee00ff",
@@ -42,7 +176,7 @@ class Sand extends Particle {
     }
 }
 
-class Water extends Particle {
+class Water extends Liquid {
     constructor() {
         const colours = [
             "#0000ffff",
@@ -50,18 +184,69 @@ class Water extends Particle {
             "#0000ddff",
             "#0000ccff",
         ]
+        super(0.5, colours);
+    }
+}
+
+class Acid extends Liquid {
+    constructor() {
+        const colours = [
+            "#00ff00ff",
+            "#00ee00ff",
+            "#00dd00ff",
+            "#00cc00ff",
+        ]
         super(0, colours);
+    }
+
+    move(x0, y0, x1, y1) {
+        let startIndex = toIndex(x0, y0);
+        let endIndex = toIndex(x1, y1);
+
+        let startParticle = cells[startIndex];
+        let endParticle = cells[endIndex];
+
+        if (!(endParticle instanceof Acid)) {
+            if (Math.random() < 0.02) {
+                cells[startIndex] = null;
+                cells[endIndex] = startParticle;
+
+                updateCells.push([x0, y0]);
+                updateCells.push([x1, y1]);
+
+                return true;
+            }
+            
+            if (endParticle === null) {
+                cells[startIndex] = endParticle;
+                cells[endIndex] = startParticle;
+    
+                updateCells.push([x0, y0]);
+                updateCells.push([x1, y1]);
+    
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
 function setType(type) {
     switch (type) {
+        case "stone":
+            newParticle = () => new Stone();
+            break;
         case "sand":
             newParticle = () => new Sand();
             break;
         case "water":
             newParticle = () => new Water();
             break;
+        case "acid":
+            newParticle = () => new Acid();
+            break;
+        case "erase":
         default:
             newParticle = () => null;
             break;
@@ -94,93 +279,12 @@ function tick() {
         for (let x = 0; x < width; x++) {
             let cellIndex = toIndex(x, y);
             let particle = cells[cellIndex]
-            let possibleLocations = [];
-
-            let down = [x, y + 1];
-            let left = [x - 1, y];
-            let right = [x + 1, y];
-            let downLeft = [x - 1, y + 1];
-            let downRight = [x + 1, y + 1];
-
-            let hasDown = y < height - 1;
-            let hasLeft = x > 0;
-            let hasRight = x < width - 1;
-
-            if (particle instanceof Sand) {
-                if (hasDown) {
-                    possibleLocations.push(down);
-
-                    if (hasLeft && hasRight)
-                    {
-                        if (Math.random() < 0.5) {
-                            possibleLocations.push(downLeft);
-                        } else {
-                            possibleLocations.push(downRight);
-                        }
-                    }
-                    else if (hasLeft) {
-                        possibleLocations.push(downLeft);
-                    }
-                    else if (hasRight) {
-                        possibleLocations.push(downRight);
-                    }
-                }
-
-                possibleLocations.push([x, y]);
-            }
-
-            if (particle instanceof Water) {
-                if (hasDown) {
-                    possibleLocations.push(down);
-
-                    if (hasLeft && hasRight)
-                    {
-                        if (Math.random() < 0.5) {
-                            possibleLocations.push(downLeft);
-                        } else {
-                            possibleLocations.push(downRight);
-                        }
-                    }
-                    else if (hasLeft) {
-                        possibleLocations.push(downLeft);
-                    }
-                    else if (hasRight) {
-                        possibleLocations.push(downRight);
-                    }
-                }
-
-                if (hasLeft && hasRight)
-                {
-                    if (Math.random() < 0.5) {
-                        possibleLocations.push(left);
-                    } else {
-                        possibleLocations.push(right);
-                    }
-                }
-                else if (hasLeft) {
-                    possibleLocations.push(left);
-                }
-                else if (hasRight) {
-                    possibleLocations.push(right);
-                }
-
-                possibleLocations.push([x, y]);
-            }
 
             if (particle !== null) {
+                let possibleLocations = particle.spread(x, y);
                 for (let i = 0; i < possibleLocations.length; i++) {
                     let [nextX, nextY] = possibleLocations[i];
-                    let nextIndex = toIndex(nextX, nextY);
-                    let nextParticle = cells[nextIndex];
-
-                    if (nextParticle === null || nextParticle.density < particle.density) {
-                        // Swap particles
-                        cells[cellIndex] = nextParticle;
-                        cells[nextIndex] = particle;
-
-                        updateCells.push([x, y]);
-                        updateCells.push([nextX, nextY])
-
+                    if (particle.move(x, y, nextX, nextY)) {
                         break;
                     }
                 }
@@ -229,7 +333,6 @@ window.onload = () => {
         pressed = true;
         mouseX = event.offsetX;
         mouseY = event.offsetY;
-        buttonDown = event.button;
     });
     canvas.addEventListener("mousemove", (event) => {
         if (pressed) {
