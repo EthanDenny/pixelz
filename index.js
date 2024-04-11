@@ -469,18 +469,22 @@ function renderLoop() {
 
     while (updateCells.length > 0) {
         let [x, y] = updateCells.pop();
-        let cell = cells[toIndex(x, y)];
 
-        ctx.beginPath();
+        if (x < width && y < height)
+        {
+            let cell = cells[toIndex(x, y)];
 
-        if (cell === null) {
-            ctx.clearRect(x * cellSize, y * cellSize, cellSize, cellSize);
-        } else {
-            ctx.fillStyle = cell.colour;
-            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            ctx.beginPath();
+
+            if (cell === null) {
+                ctx.clearRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            } else {
+                ctx.fillStyle = cell.colour;
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            }
+
+            ctx.stroke();
         }
-
-        ctx.stroke();
     }
 
     requestAnimationFrame(renderLoop);
@@ -489,22 +493,47 @@ function renderLoop() {
 window.onload = () => {
     canvas = document.getElementById("canvas");
     ctx = canvas.getContext("2d");
-    width = Math.floor(canvas.clientWidth / cellSize);
-    height = Math.floor(canvas.clientHeight / cellSize);
 
     cells = new Array(width * height).fill(null);
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            updateCells.push([x, y]);
+    let resize = (event) => {
+        let oldWidth = width;
+        let oldHeight = height;
+
+        width = Math.floor(window.innerWidth / cellSize);
+        height = Math.floor(window.innerHeight / cellSize);
+
+        if (width != oldWidth || height != oldHeight) {
+            let newCells = new Array(width * height).fill(null);
+
+            for (let y = 0; y < Math.min(height, oldHeight); y++) {
+                for (let x = 0; x < Math.min(width, oldWidth); x++) {
+                    newCells[toIndex(x, y)] = cells[y * oldWidth + x];
+                }
+            }
+
+            cells = newCells;
+        }
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                updateCells.push([x, y]);
+            }
         }
     }
+
+    resize(null);
+    addEventListener("resize", resize);
 
     canvas.addEventListener("mousedown", (event) => {
         pressed = true;
         mouseX = event.offsetX;
         mouseY = event.offsetY;
     });
+
     canvas.addEventListener("mousemove", (event) => {
         if (pressed) {
             let x0 = mouseX;
@@ -545,6 +574,7 @@ window.onload = () => {
             mouseY = event.offsetY;
         }
     });
+
     canvas.addEventListener("mouseup", () => {
         pressed = false;
     });
