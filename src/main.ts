@@ -40,6 +40,7 @@ class Particle {
     this.flammable = flammable;
   }
 
+  // @ts-ignore
   spread(x: number, y: number): Index[] {
     x = y; // Hacky way to remove unused variable warning
     return [];
@@ -376,7 +377,7 @@ class Lava extends Liquid {
   }
 }
 
-function setType(type: string) {
+export function setType(type: string) {
   switch (type) {
     case "stone":
       newParticle = () => new Stone();
@@ -562,3 +563,13 @@ window.onload = () => {
 
   requestAnimationFrame(renderLoop);
 };
+
+const children = document.getElementById("type-buttons")?.children!;
+
+for (let i = 0; i < children.length; i++) {
+  children.item(i)?.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const type = target.innerText.toLowerCase();
+    setType(type);
+  });
+}
