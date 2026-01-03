@@ -5,6 +5,6 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM pierrezemb/gostatic
-COPY --from=builder /app/dist /srv/http/
-CMD ["-port","8080","-https-promote", "-enable-logging"]
+FROM caddy:2-alpine
+COPY --from=builder /app/dist /usr/share/caddy/
+COPY Caddyfile /etc/caddy/Caddyfile

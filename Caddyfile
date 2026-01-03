@@ -1,0 +1,7 @@
+:8080
+root * /usr/share/caddy
+@notFile {
+	not file
+}
+rewrite @notFile /index.html
+file_server
