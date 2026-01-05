@@ -1,5 +1,6 @@
 import { createParticle, moveParticle, spreadParticle } from "./particles";
 import { SimulatorState, ParticleKind } from "./types";
+import init, { interpolate_line } from "pixelz-rs";
 
 const CELL_SIZE = 8;
 
@@ -93,7 +94,9 @@ function renderLoop() {
   requestAnimationFrame(renderLoop);
 }
 
-window.onload = () => {
+window.onload = async () => {
+  await init();
+
   canvas = document.getElementById("canvas") as HTMLCanvasElement;
   ctx = canvas.getContext("2d")!;
 
@@ -139,38 +142,15 @@ window.onload = () => {
 
   canvas.addEventListener("mousemove", (event) => {
     if (pressed && currentParticle !== null) {
-      let x0 = mouseX;
-      let y0 = mouseY;
-      let x1 = event.offsetX;
-      let y1 = event.offsetY;
+      const lineCoordinates = interpolate_line(
+        mouseX,
+        mouseY,
+        event.offsetX,
+        event.offsetY
+      );
 
-      let dx = Math.abs(x1 - x0);
-      let sx = x0 < x1 ? 1 : -1;
-      let dy = -Math.abs(y1 - y0);
-      let sy = y0 < y1 ? 1 : -1;
-      let error = dx + dy;
-
-      while (true) {
-        circle(currentParticle, x0, y0, 5, 0.1);
-
-        if (x0 == x1 && y0 == y1) {
-          break;
-        }
-        let e2 = 2 * error;
-        if (e2 >= dy) {
-          if (x0 == x1) {
-            break;
-          }
-          error += dy;
-          x0 += sx;
-        }
-        if (e2 <= dx) {
-          if (y0 == y1) {
-            break;
-          }
-          error += dx;
-          y0 += sy;
-        }
+      for (const { x, y } of lineCoordinates) {
+        circle(currentParticle, x, y, 5, 0.1);
       }
 
       mouseX = event.offsetX;
